@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerador de Relatórios - Yukaline</title>
+    <style>
+        :root {
+            --azul-yuk: #003fa0;
+            --amarelo-yuk: #f7bd31;
+            --amarelo-claro: #fff9eb;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; display: flex; margin: 0; background: #1a1a1a; height: 100vh; overflow: hidden; }
+
+        /* Painel de Edição */
+        #editor { width: 520px; background: #f4f4f4; padding: 20px; overflow-y: auto; border-right: 2px solid var(--amarelo-yuk); }
+
+        /* Área de Visualização */
+        #preview-container { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #333; }
+
+        #documento-pdf {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            padding: 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cabo-section {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            position: relative;
+        }
+
+        .fibra-row { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; }
+        .fibra-row input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .in-f { width: 55px; text-align: center; }
+        .in-p { width: 80px; font-weight: bold; color: var(--azul-yuk); text-align: center; }
+        .in-e { flex-grow: 1; }
+
+        .btn-remover { background: #ff4d4d; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; }
+        .btn-fibra { background: #eee; border: 1px solid #ccc; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-top: 5px; }
+
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--azul-yuk); padding-bottom: 10px; margin-bottom: 20px; }
+        .logo-img { max-height: 60px; }
+        
+        h2 { background: var(--azul-yuk); color: white; padding: 6px 12px; font-size: 13px; border-left: 5px solid var(--amarelo-yuk); margin: 15px 0 5px 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th { background: var(--amarelo-claro); color: var(--azul-yuk); padding: 6px; text-align: left; border-bottom: 2px solid var(--azul-yuk); font-size: 11px; }
+        td { padding: 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+        
+        .resumo-geral {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--azul-yuk);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .obs-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #fafafa;
+        }
+
+        .btn-add-cabo { background: var(--azul-yuk); color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; }
+        .btn-print { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
+
+        @media print {
+            #editor { display: none; }
+            #preview-container { padding: 0; background: white; overflow: visible; }
+            #documento-pdf { width: 100%; box-shadow: none; padding: 10mm; }
+            .resumo-geral, h2, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="editor">
+    <h3 style="color: var(--azul-yuk)">Novo Relatório Técnico</h3>
+    
+    <div style="margin-bottom: 20px;">
+        <label style="font-size: 11px; font-weight: bold; color: var(--azul-yuk);">TÍTULO DO DOCUMENTO</label>
+        <input type="text" id="in-titulo" value="Nome do seu Relatório" oninput="atualizarVisualizacao()" style="width:100%; padding:8px; margin-bottom:10px;">
+        
+        <label style="font-size: 11px; font-weight: bold; color: var(--azul-yuk);">PROJETISTA RESPONSÁVEL</label>
+        <input type="text" id="in-projetista" placeholder="Nome do responsável" oninput="atualizarVisualizacao()" style="width:100%; padding:8px; margin-bottom:10px;">
+
+        <label style="font-size: 11px; font-weight: bold; color: var(--azul-yuk);">IDENTIFICAÇÃO DA CE / UNIDADE</label>
+        <input type="text" id="in-ce" placeholder="Ex: CE YUK 00" oninput="atualizarVisualizacao()" style="width:100%; padding:8px; margin-bottom:10px;">
+
+        <label style="font-size: 11px; font-weight: bold; color: var(--azul-yuk);">OBSERVAÇÕES GERAIS</label>
+        <textarea id="in-obs" oninput="atualizarVisualizacao()" style="width:100%; padding:8px; height: 80px; border-radius:4px; border:1px solid #ccc; font-family: sans-serif;" placeholder="Notas técnicas adicionais..."></textarea>
+    </div>
+
+    <div id="cabos-inputs"></div>
+    
+    <button class="btn-add-cabo" onclick="adicionarCabo()">+ ADICIONAR CABO</button>
+    <button class="btn-print" onclick="window.print()">💾 GERAR PDF</button>
+</div>
+
+<div id="preview-container">
+    <div id="documento-pdf">
+        <header>
+            <div>
+                <h1 id="out-titulo" style="margin:0; font-size: 24px; color: var(--azul-yuk);">CABOS DERIVAÇÕES</h1>
+                <p style="margin:5px 0">Unidade: <strong id="out-ce">---</strong></p>
+                <p style="margin:0; font-size: 12px;">Projetista: <span id="out-projetista">---</span></p>
+            </div>
+            <img src="https://i.ibb.co/zHQ0hmhk/Logo.png" class="logo-img">
+        </header>
+
+        <div id="conteudo-pdf"></div>
+
+        <div class="resumo-geral">
+            <strong>TOTAL GERAL DE PORTAS (ATENDIMENTO)</strong>
+            <span style="font-size: 22px; font-weight: bold;"><span id="total-geral">0</span> PORTAS</span>
+        </div>
+
+        <div id="out-obs-container" class="obs-container" style="display: none;">
+            <strong style="color: var(--azul-yuk); display: block; margin-bottom: 5px; border-bottom: 1px solid #ddd;">OBSERVAÇÕES:</strong>
+            <div id="out-obs-text" style="white-space: pre-wrap; line-height: 1.4;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Começa com uma lista vazia
+    let dadosCabos = [];
+
+    function renderizarEditor() {
+        const container = document.getElementById('cabos-inputs');
+        container.innerHTML = "";
+        
+        dadosCabos.forEach((cabo, cIdx) => {
+            const section = document.createElement('div');
+            section.className = 'cabo-section';
+            
+            section.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; gap: 10px;">
+                    <input type="text" value="${cabo.titulo}" placeholder="Nome do Cabo (ex: CABO 1)" oninput="dadosCabos[${cIdx}].titulo=this.value; atualizarVisualizacao()" style="flex-grow:1; font-weight:bold; padding:5px; border:1px solid #ccc; border-radius:4px">
+                    <button class="btn-remover" onclick="removerCabo(${cIdx})">Remover Cabo</button>
+                </div>
+                <div id="fibras-${cIdx}"></div>
+                <button class="btn-fibra" onclick="adicionarFibra(${cIdx})">+ Add Fibra</button>
+            `;
+            container.appendChild(section);
+            
+            const fContainer = document.getElementById(`fibras-${cIdx}`);
+            cabo.fibras.forEach((fibra, fIdx) => {
+                const fDiv = document.createElement('div');
+                fDiv.className = 'fibra-row';
+                fDiv.innerHTML = `
+                    <input type="text" class="in-f" value="${fibra.f}" placeholder="F" oninput="dadosCabos[${cIdx}].fibras[${fIdx}].f=this.value; atualizarVisualizacao()">
+                    <input type="number" class="in-p" value="${fibra.p}" placeholder="Portas" oninput="dadosCabos[${cIdx}].fibras[${fIdx}].p=parseInt(this.value)||0; atualizarVisualizacao()">
+                    <input type="text" class="in-e" value="${fibra.e}" placeholder="Caminho / Splitters" oninput="dadosCabos[${cIdx}].fibras[${fIdx}].e=this.value; atualizarVisualizacao()">
+                    <button class="btn-remover" onclick="removerFibra(${cIdx}, ${fIdx})">×</button>
+                `;
+                fContainer.appendChild(fDiv);
+            });
+        });
+        atualizarVisualizacao();
+    }
+
+    function atualizarVisualizacao() {
+        document.getElementById('out-titulo').innerText = document.getElementById('in-titulo').value || "RELATÓRIO";
+        document.getElementById('out-ce').innerText = document.getElementById('in-ce').value || "Não informada";
+        document.getElementById('out-projetista').innerText = document.getElementById('in-projetista').value || "---";
+
+        const obsValue = document.getElementById('in-obs').value;
+        const outObsContainer = document.getElementById('out-obs-container');
+        if (obsValue.trim() !== "") {
+            outObsContainer.style.display = "block";
+            document.getElementById('out-obs-text').innerText = obsValue;
+        } else {
+            outObsContainer.style.display = "none";
+        }
+
+        let htmlPDF = "";
+        let totalGeral = 0;
+
+        dadosCabos.forEach(cabo => {
+            let totalCabo = 0;
+            let fibrasTabela = "";
+            cabo.fibras.forEach(fibra => {
+                totalCabo += fibra.p;
+                fibrasTabela += `<tr>
+                    <td width="10%"><strong>${fibra.f || '-'}</strong></td>
+                    <td width="15%">${fibra.p} Portas</td>
+                    <td>${fibra.e || '-'}</td>
+                </tr>`;
+            });
+            totalGeral += totalCabo;
+            htmlPDF += `
+                <h2><span>${cabo.titulo || 'CABO SEM NOME'}</span> <span style="background:var(--amarelo-yuk); color:black; padding:0 8px; border-radius:4px; font-weight:bold">${totalCabo} Portas</span></h2>
+                <table>
+                    <thead><tr><th>FIBRA</th><th>QTD PORTAS</th><th>DETALHAMENTO TÉCNICO</th></tr></thead>
+                    <tbody>${fibrasTabela || '<tr><td colspan="3" style="text-align:center">Nenhuma fibra registrada</td></tr>'}</tbody>
+                </table>`;
+        });
+
+        document.getElementById('conteudo-pdf').innerHTML = htmlPDF || "<p style='text-align:center; color:#999; margin-top:50px;'>Adicione cabos para começar a visualizar o relatório.</p>";
+        document.getElementById('total-geral').innerText = totalGeral;
+    }
+
+    function adicionarCabo() { 
+        dadosCabos.push({ titulo: "", fibras: [] }); 
+        renderizarEditor(); 
+    }
+    function removerCabo(idx) { 
+        if(confirm("Deseja remover este cabo e todas as suas fibras?")){ 
+            dadosCabos.splice(idx, 1); 
+            renderizarEditor(); 
+        } 
+    }
+    function adicionarFibra(cIdx) { 
+        dadosCabos[cIdx].fibras.push({f:"", p:0, e:""}); 
+        renderizarEditor(); 
+    }
+    function removerFibra(cIdx, fIdx) { 
+        dadosCabos[cIdx].fibras.splice(fIdx, 1); 
+        renderizarEditor(); 
+    }
+
+    // Inicia com um cabo em branco por padrão
+    window.onload = () => {
+        adicionarCabo();
+    };
+</script>
+</body>
+</html>
